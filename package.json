@@ -1,0 +1,29 @@
+{
+  "name": "netpgp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "Main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pluume/netpgp.git"
+  },
+  "keywords": [
+    "pgp",
+    "encrypt",
+    "network"
+  ],
+  "author": "Francis Le Roy",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Pluume/netpgp/issues"
+  },
+  "homepage": "https://github.com/Pluume/netpgp#readme",
+  "dependencies": {
+    "node-pgp": "0.0.1",
+    "openpgp": "^2.5.4",
+    "randomstring": "^1.1.5"
+  }
+}
