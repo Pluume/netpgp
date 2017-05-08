@@ -2,54 +2,78 @@ const keypair = require("node-pgp");
 const openpgp = require("openpgp");
 const net = require("net");
 const randomstring = require("randomstring");
-var method = netpgp.prototype;
+var events = require('events');
+var methodServer = serverpgp.prototype;
+var methodSocket = sockpgp.prototype;
 
-function netpgp(port, address) {
+function serverpgp(port, address) {
   this._port = port;
   this._address = address;
   this._clients = [];
-
+  this.eventEmitter = new events.EventEmitter();
 }
 
-function dataCompiler(connection, data) {
-  connection.currentBuf += data;
-  if (connection.currentBuf[connection.currentBuf.length - 1] == "\0") {
-    console.log(connection.currentBuf);
-    if (connection._init)
-      decode(connection, connection.currentBuf.substring(0, connection.currentBuf.length - 1).toString("utf8"));
+function sockpgp(port, address) {
+  this._port = port;
+  this._address = address;
+  this.currentBuf = "";
+  this._init = false;
+}
+
+function dataCompiler(data) {
+  console.log("Data : " + data);
+  this.currentBuf += data;
+
+  if (this.currentBuf[this.currentBuf.length - 1] == "\0") {
+    console.log("Data full : " + this.currentBuf);
+    if (this._init)
+      decode(this, this.currentBuf.substring(0, this.currentBuf.length - 1).toString("utf8"));
     else {
-      connection._rpubkey = connection.currentBuf.substring(0, connection.currentBuf.length - 1).toString("utf8");
-      connection._init = true;
+      this._rpubkey = this.currentBuf.substring(0, this.currentBuf.length - 1).toString("utf8");
+      this._init = true;
     }
-    connection.currentBuf = "";
+    this.currentBuf = "";
   }
   //TODO Verify overflow
   //TODO Check if first time exchanging data, if yes then send pubkey
 }
-
-method.init = function() {
+methodServer.on = function(chan, cb) {
+  this.eventEmitter.on(chan, db);
+};
+methodServer.init = function() {
   try {
     var closeConnection = (conn) => {
+      console.log("Closed");
       this._clients.splice(this._clients.indexOf(conn), 1);
     };
     var newConnection = (socket) => {
+      socket.on("error", errorHandler);
+      socket.on("data", dataCompiler);
+      socket.on("close", closeConnection);
       var conn = {
         socket: socket
       };
-      conn._init = false;
-      conn._password = randomstring.generate();
-      conn.currentBuf = "";
+      console.log("New connections");
+      conn.socket._init = false;
+      conn.socket._password = randomstring.generate();
+      conn.socket.currentBuf = "";
       var options = {
         userIds: [{
           name: randomstring.generate(),
-          email: randomstring.generate()
+          email: randomstring.generate({
+            length: 5,
+            charset: 'alphabetic'
+          }) + "@" + randomstring.generate({
+            length: 5,
+            charset: 'alphabetic'
+          }) + ".com"
         }],
         numBits: 1024,
-        passphrase: conn._password
+        passphrase: conn.socket._password
       };
       openpgp.generateKey(options).then(function(key) {
-        conn._privk = key.privateKeyArmored; // '-----BEGIN PGP PRIVATE KEY BLOCK ... '
-        conn._pubkey = key.publicKeyArmored; // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
+        conn._privk = key.privateKeyArmored;
+        conn._pubkey = key.publicKeyArmored;
         this._clients.push(conn);
         conn.socket.write(conn._pubkey + "\0");
       });
@@ -71,13 +95,8 @@ method.init = function() {
       });
     };
 
-    this._server = net.createServer(function(socket) {
-      socket.on("connection", newConnection);
-      socket.on("error", errorHandler);
-      socket.on("data", dataCompiler);
-      socket.on("close", closeConnection);
-    }).listen(this._port);
-
+    this._server = net.createServer(function(socket) {}).listen(this._port);
+    this._server.on("connection", newConnection);
   } catch (err) {
     return err;
   }
@@ -103,4 +122,6 @@ function decode() {
 function errorHandler() {
 
 }
-module.exports = netpgp;
+module.exports = {
+  server: serverpgp
+};
